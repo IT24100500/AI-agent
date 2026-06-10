@@ -1,37 +1,43 @@
 import { useState } from "react";
-
 function App() {
   const [query, setQuery] = useState("");
   const [reply, setReply] = useState("");
 
-  async function sendMessage() {
-    const res = await fetch("http://localhost:5000/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
-    });
-    const data = await res.json();
-    setReply(data.reply);
-  }
+  const sendQuery = async () => {
+    if (!query.trim()) return;
+    try {
+      const res = await fetch(
+        `${process.env.REACT_APP_API_URL}${process.env.REACT_APP_MCP_ENDPOINT}/chat`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+        }
+      );
+      const data = await res.json();
+      setReply(data.reply);
+    } catch (err) {
+      setReply("Error: Could not connect to backend.");
+    }
+  };
 
   return (
-    <div style={{ padding: "20px", fontFamily: "Arial" }}>
-      <h1>Kapruka AI Agent</h1>
-      <div style={{ marginBottom: "10px" }}>
+    <div className="App">
+      <h2>🛒 Kapruka AI Shopping Agent</h2>
+      <div>
         <input
-          type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask me something..."
-          style={{ width: "300px", padding: "8px" }}
+          placeholder="Ask me about products, categories, delivery..."
+          style={{ width: "60%", padding: "8px" }}
         />
-        <button onClick={sendMessage} style={{ marginLeft: "10px", padding: "8px" }}>
+        <button onClick={sendQuery} style={{ marginLeft: "10px" }}>
           Send
         </button>
       </div>
-      <div>
-        <strong>Agent Reply:</strong>
-        <p>{reply}</p>
+      <div style={{ marginTop: "20px", whiteSpace: "pre-wrap" }}>
+        <strong>Agent:</strong>
+        <div>{reply}</div>
       </div>
     </div>
   );

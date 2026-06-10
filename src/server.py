@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 
 from mcp.server.fastmcp import FastMCP
-from mcp.server.streamable_http_manager import TransportSecuritySettings
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse

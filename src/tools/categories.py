@@ -1,6 +1,7 @@
 """MCP tool: kapruka_list_categories."""
 
 import json
+from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -77,13 +78,13 @@ class ListCategoriesInput(BaseModel):
 
 @mcp.tool(
     name="kapruka_list_categories",
-    annotations={
+    annotations=cast(Any, {
         "title": "List Kapruka Product Categories",
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
         "openWorldHint": True,
-    },
+    }),
 )
 async def kapruka_list_categories(params: ListCategoriesInput) -> str:
     """List top-level Kapruka product categories by name with browse URLs.
