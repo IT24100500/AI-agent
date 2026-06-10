@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kapruka Agent Shop</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen text-slate-800">
+
+    <div class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main UI (e.g. Products / Catalog Display) -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="glass border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h1 class="text-3xl font-bold text-violet-900 mb-2">Kapruka Agent Shopping</h1>
+                <p class="text-slate-600">Browse Sri Lanka's largest catalog. Place guest orders and track shipment
+                    updates using our conversational AI helper.</p>
+            </div>
+
+            <div id="product-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Dynamically rendered products will go here -->
+            </div>
+        </div>
+
+        <!-- Chat Assistant Sidebar -->
+        <div
+            class="glass border border-slate-200 rounded-2xl shadow-lg flex flex-col h-[600px] overflow-hidden sticky top-8">
+            <!-- Chat Header -->
+            <div class="bg-violet-950 text-white p-4 flex items-center justify-between">
+                <div>
+                    <h2 class="font-bold text-lg">Kapruka Personal Shopper</h2>
+                    <p class="text-xs text-violet-200">Powered by Kapruka MCP Server</p>
+                </div>
+                <span class="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></span>
+            </div>
+
+            <!-- Chat History -->
+            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4">
+                <div class="bg-slate-100 rounded-lg p-3 max-w-[85%] text-sm">
+                    Hi! Ask me to search for products (e.g., "Find black tea or chocolate cakes"), check delivery rates,
+                    or checkout an item.
+                </div>
+            </div>
+
+            <!-- Chat Input -->
+            <form id="chat-form" class="p-3 border-t border-slate-200 flex gap-2">
+                <input type="text" id="chat-input" placeholder="Ask something..."
+                    class="flex-1 border border-slate-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
+                    required>
+                <button type="submit"
+                    class="bg-violet-850 hover:bg-violet-950 text-white font-semibold rounded-xl px-4 py-2 text-sm transition-colors">
+                    Send
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+
+        let messageHistory = [];
+
+        function appendMessage(role, text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `p-3 rounded-lg max-w-[85%] text-sm ${role === 'user'
+                ? 'bg-violet-900 text-white ml-auto'
+                : 'bg-slate-100 text-slate-800'
+                }`;
+            msgDiv.innerText = text;
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function updateProductGrid(text) {
+            const grid = document.getElementById('product-grid');
+            
+            // 1. Multi-product search regex
+            // Matches:
+            // **1. Name of Product**
+            //    ID: `item001` · LKR 1,200 · In stock
+            //    [View product](https://url)
+            const searchRegex = /\*\*(\d+)\.\s+([^*]+)\*\*\s*\n\s*ID:\s*`([^`]+)`\s*·\s*([^\n·]+)(?:\s*·\s*([^\n·]+))?\s*\n\s*(?:\[View product\]\(([^)]+)\)|\[Browse category\]\(([^)]+)\))/g;
+
+            // 2. Single product details regex
+            // Matches:
+            // ## Name of Product
+            // **ID**: `item001`
+            // **Price**: LKR 1,200
+            // **Stock**: In stock
+            // ...
+            // **Image**: http://...
+            // [View on Kapruka](https://url)
+            const singleRegex = /##\s+([^\n]+)\n\*\*ID\*\*:\s*`([^`]+)`\n\*\*Price\*\*:\s*([^\n]+)\n\*\*Stock\*\*:\s*([^\n]+)(?:[\s\S]*?)\*\*Image\*\*:\s*([^\n\s]+)(?:[\s\S]*?)\[View on Kapruka\]\(([^)]+)\)/i;
+
+            const cards = [];
+
+            // Try matching multi-product search list first
+            let match;
+            searchRegex.lastIndex = 0;
+            while ((match = searchRegex.exec(text)) !== null) {
+                const [_, index, name, id, price, stock, viewUrl, browseUrl] = match;
+                const url = viewUrl || browseUrl || '#';
+                
+                cards.push({
+                    name: name.trim(),
+                    id: id.trim(),
+                    price: price.trim(),
+                    stock: (stock || 'In stock').trim(),
+                    url: url.trim(),
+                    imageUrl: null
+                });
+            }
+
+            // If no search matches, try single product details match
+            if (cards.length === 0) {
+                const singleMatch = text.match(singleRegex);
+                if (singleMatch) {
+                    const [_, name, id, price, stock, imageUrl, url] = singleMatch;
+                    cards.push({
+                        name: name.trim(),
+                        id: id.trim(),
+                        price: price.trim(),
+                        stock: stock.trim(),
+                        url: url.trim(),
+                        imageUrl: imageUrl.trim()
+                    });
+                }
+            }
+
+            if (cards.length === 0) return; // Keep existing products if no new ones are detected
+
+            grid.innerHTML = ''; // clear grid if we found new products to display
+            
+            cards.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'glass border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between transform hover:-translate-y-0.5 bg-white';
+                
+                let imageHtml = '';
+                if (product.imageUrl) {
+                    imageHtml = `
+                        <div class="w-full h-40 bg-slate-50 rounded-xl overflow-hidden mb-4 flex items-center justify-center border border-slate-100">
+                            <img src="${product.imageUrl}" alt="${product.name}" class="object-contain h-full w-full">
+                        </div>
+                    `;
+                } else {
+                    // Nice vibrant geometric icon placeholder based on name hash
+                    const hue = [...product.name].reduce((acc, char) => acc + char.charCodeAt(0), 0) % 360;
+                    imageHtml = `
+                        <div class="w-full h-40 rounded-xl mb-4 flex flex-col items-center justify-center text-white border border-slate-100" style="background: linear-gradient(135deg, hsl(${hue}, 70%, 45%) 0%, hsl(${(hue + 40) % 360}, 75%, 35%) 100%)">
+                            <span class="text-4xl mb-2">🛍️</span>
+                            <span class="text-xs font-mono opacity-80">${product.id}</span>
+                        </div>
+                    `;
+                }
+
+                const isOutOfStock = product.stock.toLowerCase().includes('out of');
+                const badgeColor = isOutOfStock ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+
+                card.innerHTML = `
+                    <div>
+                        ${imageHtml}
+                        <h3 class="font-bold text-slate-800 text-base mb-1 line-clamp-2" title="${product.name}">${product.name}</h3>
+                        <p class="text-xs text-slate-400 mb-3 font-mono">ID: ${product.id}</p>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="font-extrabold text-violet-950 text-lg">${product.price}</span>
+                            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}">
+                                ${product.stock}
+                            </span>
+                        </div>
+                        <a href="${product.url}" target="_blank" rel="noopener" class="block w-full text-center bg-violet-900 hover:bg-violet-950 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm">
+                            View on Kapruka
+                        </a>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            appendMessage('user', text);
+            messageHistory.push({ role: 'user', content: text });
+            chatInput.value = '';
+
+            // Mock loading state
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'text-xs text-slate-400 italic p-1 animate-pulse';
+            loadingDiv.innerText = 'Agent is looking up details...';
+            chatMessages.appendChild(loadingDiv);
+
+            try {
+                const response = await fetch('http://localhost:3000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: messageHistory })
+                });
+
+                const data = await response.json();
+                chatMessages.removeChild(loadingDiv);
+
+                if (data.error) {
+                    appendMessage('assistant', `Sorry, error: ${data.error}`);
+                } else {
+                    appendMessage('assistant', data.content);
+                    messageHistory.push({ role: 'assistant', content: data.content });
+                    updateProductGrid(data.content);
+                }
+            } catch (err) {
+                chatMessages.removeChild(loadingDiv);
+                appendMessage('assistant', "Could not reach the backend gateway. Make sure server.js is running.");
+            }
+        });
+    </script>
+</body>
+
+</html>
